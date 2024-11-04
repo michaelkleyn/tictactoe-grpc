@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package proto;
-option go_package = "github.com/yourusername/tictactoe-grpc/proto";
+option go_package = "github.com/michaelkleyn/tictactoe-grpc/proto";
 
 service GameService {
     rpc CreateGame (CreateGameRequest) returns (CreateGameResponse);
