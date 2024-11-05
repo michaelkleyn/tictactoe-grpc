@@ -7,10 +7,11 @@
 package proto
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -763,22 +764,25 @@ func file_proto_game_proto_rawDescGZIP() []byte {
 	return file_proto_game_proto_rawDescData
 }
 
-var file_proto_game_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_game_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_proto_game_proto_goTypes = []any{
-	(GameStatus)(0),                  // 0: proto.GameStatus
-	(Mark)(0),                        // 1: proto.Mark
-	(*CreateGameRequest)(nil),        // 2: proto.CreateGameRequest
-	(*CreateGameResponse)(nil),       // 3: proto.CreateGameResponse
-	(*JoinGameRequest)(nil),          // 4: proto.JoinGameRequest
-	(*JoinGameResponse)(nil),         // 5: proto.JoinGameResponse
-	(*MakeMoveRequest)(nil),          // 6: proto.MakeMoveRequest
-	(*MakeMoveResponse)(nil),         // 7: proto.MakeMoveResponse
-	(*StreamGameUpdatesRequest)(nil), // 8: proto.StreamGameUpdatesRequest
-	(*GameUpdate)(nil),               // 9: proto.GameUpdate
-	(*BoardState)(nil),               // 10: proto.BoardState
-	(*Cell)(nil),                     // 11: proto.Cell
-}
+var (
+	file_proto_game_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+	file_proto_game_proto_msgTypes  = make([]protoimpl.MessageInfo, 10)
+	file_proto_game_proto_goTypes   = []any{
+		(GameStatus)(0),                  // 0: proto.GameStatus
+		(Mark)(0),                        // 1: proto.Mark
+		(*CreateGameRequest)(nil),        // 2: proto.CreateGameRequest
+		(*CreateGameResponse)(nil),       // 3: proto.CreateGameResponse
+		(*JoinGameRequest)(nil),          // 4: proto.JoinGameRequest
+		(*JoinGameResponse)(nil),         // 5: proto.JoinGameResponse
+		(*MakeMoveRequest)(nil),          // 6: proto.MakeMoveRequest
+		(*MakeMoveResponse)(nil),         // 7: proto.MakeMoveResponse
+		(*StreamGameUpdatesRequest)(nil), // 8: proto.StreamGameUpdatesRequest
+		(*GameUpdate)(nil),               // 9: proto.GameUpdate
+		(*BoardState)(nil),               // 10: proto.BoardState
+		(*Cell)(nil),                     // 11: proto.Cell
+	}
+)
+
 var file_proto_game_proto_depIdxs = []int32{
 	10, // 0: proto.GameUpdate.board_state:type_name -> proto.BoardState
 	0,  // 1: proto.GameUpdate.status:type_name -> proto.GameStatus
