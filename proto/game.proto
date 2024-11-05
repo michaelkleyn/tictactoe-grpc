@@ -4,72 +4,66 @@ package proto;
 option go_package = "github.com/michaelkleyn/tictactoe-grpc/proto";
 
 service GameService {
-    rpc CreateGame (CreateGameRequest) returns (CreateGameResponse);
-    rpc JoinGame (JoinGameRequest) returns (JoinGameResponse);
-    rpc MakeMove (MakeMoveRequest) returns (JoinGameResponse);
-    rpc StreamGameUpdates (StreamGameUpdatesRequest) returns (stream GameUpdate);
-  }
+  c CreateGame(CeateGameRequest) returns (CreateGameResponse);
+  c JoinGame(JinGameRequest) returns (JoinGameResponse);
+  c MakeMove(MkeMoveRequest) returns (JoinGameResponse);
+  c StreamGameUpdates(SreamGameUpdatesRequest) returns (stream GameUpdate);
 
-message CreateGameRequest {
-    string player_name = 1;
-  }
+message CreateGameRequest { ge CreateGameResponse {
+  string game_id = 1;
+  string player_id = 2;
+  
+  
+ssage JoinGameRequest {
+  string game_id = 1;
+  string player_id = 2;
+  
+  
+ssage JoinGameResponse {
+  string game_id = 1;
+  string player_id = 2;
+  
+  
+ssage MakeMoveRequest {
+  string game_id = 1;
+  string player_id = 2;
+  t32 position = 3; /
+  
+  
+ssage MakeMoveResponse {
+  bool success = 1;
+  string message = 2;
+  
+  
+ssage StreamGameUpdatesRequest {
+  string game_id = 1;
+  string player_id = 2;
+  
+  
+ssage GameUpdate {
+  string game_id = 1;
+  BoardState board_s
+  ring next_player_id
+  meStatus status = 4;
+  ring message = 5;
+  
+  
+um GameStatus {
+  WAITING_FOR_PLAYER = 0;
+  IN_PROGRESS = 1
+  NISHED = 2;
+  
+  
+ssage BoardState { repeated Cell cells = 1; }
 
-message CreateGameResponse {
-    string game_id = 1;
-    string player_id = 2;
-  }
+message Cell { t32 position = 1; Mark mark = 2;
+}
 
-message JoinGameRequest {
-    string game_id = 1;
-    string player_id = 2;
-  }
-
-message JoinGameResponse {
-    string game_id = 1;
-    string player_id = 2;
-  }
-
-message MakeMoveRequest {
-    string game_id = 1;
-    string player_id = 2;
-    int32 position = 3; // Positions from 0 to 8 for the 9 cells
-  }
-
-message MakeMoveResponse {
-    bool success = 1;
-    string message = 2; 
-  }
-
-message StreamGameUpdatesRequest {
-    string game_id = 1;
-    string player_id = 2;
-  }
-
-message GameUpdate {
-    string game_id = 1;
-    BoardState board_state = 2;
-    string next_player_id = 3;
-    GameStatus status = 4;
-    string message = 5;
-  }
-
-enum GameStatus {
-    WAITING_FOR_PLAYER = 0;
-    IN_PROGRESS = 1;
-    FINISHED = 2;
-  }
-
-message BoardState {
-    repeated Cell cells = 1;
-  }
-
-message Cell {
-    int32 position = 1;
-    Mark mark = 2;
-  }
-
-enum Mark {
-    EMPTY = 0;
-    X = 1;
-    O = 2;
-  }
+   Mark {
+  PTY = 0;
+X = 1;
+  O = 2;
+}
+  
+  
+  

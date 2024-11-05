@@ -1,4 +1,5 @@
 module github.com/michaelkleyn/tictactoe-grpc
+module github.com/google/uuid
 
 go 1.23.2
 
