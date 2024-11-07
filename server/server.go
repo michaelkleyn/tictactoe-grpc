@@ -14,9 +14,11 @@ import (
 	"net"
 	"sync"
 
-	"github.com/google/uuid"
 	pb "github.com/michaelkleyn/tictactoe-grpc/proto"
 	"google.golang.org/grpc"
+
+	// "google.golang.org/grpc/credentials/insecure"
+	"github.com/google/uuid"
 )
 
 // server represents the gRPC server for managing the Tic-Tac-Toe games.
@@ -100,7 +102,7 @@ func (s *server) JoinGame(ctx context.Context, req *pb.JoinGameRequest) (*pb.Joi
 	mark := pb.Mark_O
 
 	for _, player := range game.Players {
-		if player.Mark == pb.Mark_0 {
+		if player.Mark == pb.Mark_O {
 			mark = pb.Mark_X
 			break
 		}
@@ -121,8 +123,8 @@ func (s *server) JoinGame(ctx context.Context, req *pb.JoinGameRequest) (*pb.Joi
 	game.broadcastUpdate()
 
 	return &pb.JoinGameResponse{
-		GameID:   game.GameID,
-		PlayerID: playerID,
+		GameId:   game.GameID,
+		PlayerId: playerID,
 	}, nil
 }
 
@@ -312,7 +314,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterGameServiceServer(grpcServer, newServer())
+	pb.RegisterGameServiceServer(grpcServer, NewServer())
 
 	log.Println("Game server is running on port 50051...")
 	if err := grpcServer.Serve(listener); err != nil {
