@@ -304,7 +304,7 @@ func isBoardFull(board [9]pb.Mark) bool {
 }
 
 func generateID() string {
-	return uuid.NewString()
+	return uuid.NewString()[:6]
 }
 
 func main() {

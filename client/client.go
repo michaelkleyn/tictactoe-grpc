@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	pb "github.com/michaelkleyn/tictactoe-grpc/proto"
 	"google.golang.org/grpc"
@@ -14,8 +15,7 @@ import (
 )
 
 func main() {
-	// Establish gRPC connection to Game Server
-	conn, error := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, error := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if error != nil {
 		log.Fatalf("Could not connect to server: %v", error)
 	}
@@ -23,25 +23,22 @@ func main() {
 
 	client := pb.NewGameServiceClient(conn)
 
-	// Prompt for username
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Please enter username:")
+	fmt.Print("Please enter username: ")
 	playerName, _ := reader.ReadString('\n')
 	playerName = strings.TrimSpace(playerName)
 
-	// Prompt for New/Join Game
 	fmt.Println("1. Create Game")
 	fmt.Println("2. Join Game")
-	fmt.Print("Choice:")
+	fmt.Print("Choice: ")
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
 
 	var gameID, playerID string
+	var waitGroup sync.WaitGroup
 
 	switch choice {
 	case "1":
-		// Create Game
-		//  Send request to server to create new session
 		resp, err := client.CreateGame(context.Background(), &pb.CreateGameRequest{
 			PlayerName: playerName,
 		})
@@ -51,13 +48,12 @@ func main() {
 		gameID = resp.GameId
 		playerID = resp.PlayerId
 		fmt.Printf("Game created. Game ID: %s\n", gameID)
+		fmt.Println("Waiting for another player to join...")
 
 	case "2":
-		// Join Game
-		//  Send request to server to join existing session
 		fmt.Print("Enter Game ID to Join: ")
-		gameID, _ := reader.ReadString('\n')
-		gameID = strings.TrimSpace(gameID)
+		inputGameID, _ := reader.ReadString('\n')
+		gameID = strings.TrimSpace(inputGameID)
 		resp, err := client.JoinGame(context.Background(), &pb.JoinGameRequest{
 			GameId:     gameID,
 			PlayerName: playerName,
@@ -66,66 +62,40 @@ func main() {
 			log.Fatalf("Error joining game: %v", err)
 		}
 		playerID = resp.PlayerId
-		fmt.Printf("Join game. Game ID: %s\n", gameID)
+		fmt.Printf("Joined game. Game ID: %s\n", gameID)
+
 	default:
 		fmt.Println("Invalid choice")
 		return
 	}
-	// Real Time Update
-	go streamGameUpdates(client, gameID, playerID)
 
-	// Gameplay
-	//  Allow user to make moves by selecting positions on board
-	for {
-		fmt.Print("Enter position (0-8) to make a move, or 'exit' to quit: ")
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
+	// Channel to coordinate between update stream and move input
+	gameStateChan := make(chan *pb.GameUpdate, 1)
+	waitGroup.Add(1)
 
-		if input == "exit" {
-			break
-		}
+	// Start streaming updates in a goroutine
+	go func() {
+		defer waitGroup.Done()
+		streamGameUpdates(client, gameID, playerID, gameStateChan)
+	}()
 
-		position, err := parsePosition(input)
-		if err != nil {
-			fmt.Println("Invalid input. Please enter a number between 0 and 8.")
-			continue
-		}
+	// Handle game moves
+	handleGameplay(client, gameID, playerID, reader, gameStateChan)
 
-		resp, err := client.MakeMove(context.Background(), &pb.MakeMoveRequest{
-			GameId:   gameID,
-			PlayerId: playerID,
-			Position: int32(position),
-		})
-		if err != nil {
-			fmt.Printf("Error making move: %v\n", err)
-			continue
-		}
-
-		fmt.Println(resp.Message)
-	}
+	// Clean up
+	close(gameStateChan)
+	waitGroup.Wait()
 }
 
-// Parse Position
-func parsePosition(input string) (int, error) {
-	var position int
-	_, err := fmt.Sscanf(input, "%d", &position)
-	if err != nil || position < 0 || position > 8 {
-		return 0, fmt.Errorf("Invalid Position")
-	}
-	return position, nil
-}
-
-// Receive game updates of Board State, Player Disconnection, Game Status
-func streamGameUpdates(client pb.GameServiceClient, gameID, playerID string) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func streamGameUpdates(client pb.GameServiceClient, gameID, playerID string, gameStateChan chan<- *pb.GameUpdate) {
+	ctx := context.Background()
 	stream, err := client.StreamGameUpdates(ctx, &pb.StreamGameUpdatesRequest{
 		GameId:   gameID,
 		PlayerId: playerID,
 	})
 	if err != nil {
-		log.Fatalf("Error starting update stream: %v", err)
+		log.Printf("Error starting update stream: %v", err)
+		return
 	}
 
 	for {
@@ -136,30 +106,90 @@ func streamGameUpdates(client pb.GameServiceClient, gameID, playerID string) {
 		}
 
 		displayGameUpdate(update)
+		gameStateChan <- update
+
+		// Show prompt for move if it's this player's turn
+		if update.NextPlayerId == playerID {
+			fmt.Print("\nYour turn! Enter position (0-8), or 'exit' to quit: ")
+		} else if update.Status == pb.GameStatus_WAITING_FOR_PLAYER {
+			fmt.Println("\nWaiting for another player to join...")
+		} else if update.Status == pb.GameStatus_IN_PROGRESS {
+			fmt.Println("\nWaiting for other player's move...")
+		} else if update.Status == pb.GameStatus_FINISHED {
+			fmt.Println("\nGame Over!")
+			return
+		}
 	}
 }
 
-// Display the game board to the user after each update
+func handleGameplay(client pb.GameServiceClient, gameID, playerID string, reader *bufio.Reader, gameStateChan <-chan *pb.GameUpdate) {
+	for update := range gameStateChan {
+		if update.Status == pb.GameStatus_FINISHED {
+			return
+		}
+
+		if update.NextPlayerId == playerID {
+			input, _ := reader.ReadString('\n')
+			input = strings.TrimSpace(input)
+
+			if input == "exit" {
+				return
+			}
+
+			position, err := parsePosition(input)
+			if err != nil {
+				fmt.Println("Invalid input. Please enter a number between 0 and 8.")
+				continue
+			}
+
+			resp, err := client.MakeMove(context.Background(), &pb.MakeMoveRequest{
+				GameId:   gameID,
+				PlayerId: playerID,
+				Position: int32(position),
+			})
+			if err != nil {
+				fmt.Printf("Error making move: %v\n", err)
+				continue
+			}
+
+			if !resp.Success {
+				fmt.Printf("Invalid move: %s\n", resp.Message)
+			}
+		}
+	}
+}
+
+func parsePosition(input string) (int, error) {
+	var position int
+	_, err := fmt.Sscanf(input, "%d", &position)
+	if err != nil || position < 0 || position > 8 {
+		return 0, fmt.Errorf("invalid position")
+	}
+	return position, nil
+}
+
 func displayGameUpdate(update *pb.GameUpdate) {
-	fmt.Println("\nGame update:")
+	fmt.Print("\033[H\033[2J") // Clear screen
+	fmt.Println("\nCurrent Board:")
 	board := update.BoardState.Cells
-	for i, cell := range board {
-		mark := cell.Mark.String()
-		if mark == "EMPTY" {
-			mark = "_"
-		}
-		fmt.Print(mark)
-		if (i+1)%3 == 0 {
-			fmt.Println()
-		} else {
-			fmt.Print("|")
+	for i := 0; i < 9; i += 3 {
+		fmt.Printf(" %s | %s | %s\n",
+			getMarkSymbol(board[i].Mark),
+			getMarkSymbol(board[i+1].Mark),
+			getMarkSymbol(board[i+2].Mark))
+		if i < 6 {
+			fmt.Println("-----------")
 		}
 	}
-	fmt.Printf("Next Player ID: %s\n", update.GetNextPlayerId())
-	fmt.Printf("Game Status: %s\n", update.Status.String())
 }
 
-//  Send moves to server and handle server response
-//
-// Handle End Game
-//  Detect when game has ended
+func getMarkSymbol(mark pb.Mark) string {
+	switch mark {
+	case pb.Mark_X:
+		return "X"
+	case pb.Mark_O:
+		return "O"
+	default:
+		return " "
+	}
+}
